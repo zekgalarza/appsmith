@@ -30,11 +30,13 @@ jobs:
           corepack prepare yarn@3.5.1 --activate
           yarn -v
 
+      # Instala TODAS as deps na RAIZ do monorepo
+      - name: Install dependencies (root, workspaces)
+        run: yarn install --immutable
+
+      # Build do client (sem instalar aqui)
       - name: Build client
-        working-directory: app/client
-        run: |
-          yarn install --immutable
-          yarn build
+        run: yarn --cwd app/client build
 
       - name: Set up Java
         uses: actions/setup-java@v4
