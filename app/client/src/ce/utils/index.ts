@@ -2,7 +2,7 @@ import _ from "lodash";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const getHtmlPageTitle = (instanceName: string) => {
-  return "Appsmith";
+  return "Zek Galarza Dashboard";
 };
 
 export const isCEMode = () => {
