@@ -44,10 +44,10 @@ jobs:
 
       # ---------- IMPORTANTE: build do RTS antes de client/server ----------
       - name: Build RTS
-        working-directory: app/rts
         run: |
-          chmod +x ./build
-          ./build
+         yarn --cwd app/client/packages/rts install
+         yarn --cwd app/client/packages/rts build
+
 
       # ---------- Client (frontend) ----------
       - name: Build client
