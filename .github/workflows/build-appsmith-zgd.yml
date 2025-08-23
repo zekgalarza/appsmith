@@ -30,11 +30,6 @@ jobs:
           corepack prepare yarn@3.5.1 --activate
           yarn -v
 
-      - name: Build RTS
-        run: |
-          yarn --cwd app/client/packages/rts install
-          yarn --cwd app/client/packages/rts build
-
       - name: Build client
         working-directory: app/client
         run: |
@@ -73,4 +68,3 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/appsmith-dashboard:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/appsmith-dashboard:${{ github.sha }}
-
