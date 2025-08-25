@@ -32,6 +32,8 @@ jobs:
           context: .
           push: true
           provenance: false
+          build-args: |
+            BASE=debian:bookworm-slim
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/appsmith-dashboard:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/appsmith-dashboard:${{ github.sha }}
