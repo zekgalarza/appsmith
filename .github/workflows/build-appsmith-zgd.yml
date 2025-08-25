@@ -23,62 +23,35 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
 
-      - name: Enable Corepack & Yarn 3.5.1 (global)
+      - name: Enable Corepack and Yarn 3.5.1
         run: |
           corepack enable
           corepack prepare yarn@3.5.1 --activate
           yarn -v
 
-      # --- DEBUG: ver estrutura e arquivos do client ---
-      - name: Debug layout
-        run: |
-          pwd
-          ls -la
-          echo "--- app/client ---"
-          ls -la app/client || true
-          echo "--- package.json (top 60) ---"
-          head -n 60 app/client/package.json || true
-          echo "--- .yarnrc.yml ---"
-          cat app/client/.yarnrc.yml || true
-
-      # --- GARANTIR Yarn 3.5.1 DENTRO DO PROJETO client ---
-      - name: Pin Yarn inside project (client)
+      - name: Configure Yarn (client)
         working-directory: app/client
         run: |
-          corepack use yarn@3.5.1
-          yarn -v
-          # cria .yarnrc.yml mínima, se não existir
-          if [ ! -f .yarnrc.yml ]; then
-            cat > .yarnrc.yml <<'YRC'
-nodeLinker: node-modules
-enableGlobalCache: true
-yarnPath: .yarn/releases/yarn-3.5.1.cjs
-YRC
-          fi
-          # garante o binário do yarn no projeto
-          yarn set version 3.5.1
-          git status --porcelain || true
+          yarn config set enableImmutableInstalls false
+          yarn config set enableImmutableCache false
+          yarn config set nodeLinker node-modules
+          yarn config set enableGlobalCache true
 
-      # === CLIENT ===
       - name: Install client deps
         working-directory: app/client
-        env:
-          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
-        run: |
-          yarn install
+        run: yarn install
 
       - name: Build client
         working-directory: app/client
         run: yarn build
 
-      # === SERVER ===
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
           cache: maven
 
       - name: Build server
@@ -88,7 +61,6 @@ YRC
           chmod +x ./build.sh
           ./build.sh -DskipTests
 
-      # === DOCKER ===
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -107,3 +79,4 @@ YRC
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/appsmith-dashboard:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/appsmith-dashboard:${{ github.sha }}
+
