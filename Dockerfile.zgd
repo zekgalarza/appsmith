@@ -1,43 +1,48 @@
-# --------- Stage 1: build do client + RTS ----------
-FROM node:18-bullseye AS clientbuild
-WORKDIR /src
+# =====================================================================
+# Dockerfile.zgd - Build da imagem customizada "Zek Galarza Dashboard"
+# =====================================================================
 
-# Copia todo o repositório
-COPY . .
+# Imagem base
+FROM debian:bookworm-slim
 
-# Ativa Yarn 3.5.1 no container
-RUN corepack enable && corepack prepare yarn@3.5.1 --activate
+# Variáveis
+ENV APPSMITH_HOME=/appsmith-stacks
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala dependências e compila o client
-RUN cd app/client \
- && yarn install \
- && yarn build
+# Instala dependências básicas
+RUN apt-get update && \
+    apt-get install -y \
+    curl wget unzip git gnupg software-properties-common \
+    openjdk-17-jdk maven nodejs npm yarn \
+    tar zstd python3 python3-pip openssh-client && \
+    rm -rf /var/lib/apt/lists/*
 
-# Compila RTS (pacote em app/client/packages/rts)
-RUN cd app/client/packages/rts \
- && yarn install \
- && yarn build
+# Diretório de trabalho
+WORKDIR /appsmith
 
-# --------- Stage 2: imagem final ----------
-ARG BASE=debian:bookworm-slim
-FROM ${BASE}
+# Copia arquivos necessários do Appsmith
+COPY ./app/server ./server
+COPY ./app/client ./client
+COPY ./deploy/docker/fs/opt /opt
+COPY ./deploy/docker/fs/etc /etc
 
-ENV IN_DOCKER=1
+# =====================================================================
+# Build do CLIENTE (React)
+# =====================================================================
+WORKDIR /appsmith/client
+RUN yarn install --network-timeout 100000 && \
+    yarn build
 
-# Dependências mínimas
-RUN apt-get update \
- && apt-get install -y ca-certificates curl gnupg \
- && rm -rf /var/lib/apt/lists/*
+# =====================================================================
+# Build do SERVIDOR (Java Spring Boot)
+# =====================================================================
+WORKDIR /appsmith/server
+RUN mvn clean package -DskipTests
 
-# Copia estrutura de runtime (igual Appsmith CE)
-COPY deploy/docker/fs/ /
+# =====================================================================
+# Finalização
+# =====================================================================
+WORKDIR /appsmith
+EXPOSE 8080
 
-# Copia artefatos do build (client + RTS)
-COPY --from=clientbuild /src/app/client/build /editor/
-COPY --from=clientbuild /src/app/client/packages/rts/dist /rts/
-
-# Porta padrão
-EXPOSE 80
-
-# Usa o entrypoint padrão do Appsmith CE
-ENTRYPOINT ["/opt/appsmith/entrypoint.sh"]
+CMD ["java", "-jar", "server/target/server-1.0-SNAPSHOT.jar"]
