@@ -30,11 +30,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.zgd
+          file: ./Dockerfile.zgd
           push: true
           provenance: false
-          build-args: |
-            BASE=debian:bookworm-slim
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/appsmith-dashboard:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/appsmith-dashboard:${{ github.sha }}
