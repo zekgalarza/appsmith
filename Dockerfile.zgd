@@ -4,21 +4,17 @@
 FROM node:18-bullseye AS clientbuild
 WORKDIR /src
 
-# Copia o repositório
+# Copia o repo inteiro
 COPY . .
 
-# Yarn 3.5.1 via Corepack
+# Habilita Yarn 3.5.1 via Corepack
 RUN corepack enable && corepack prepare yarn@3.5.1 --activate && yarn -v
 
-# Build do client (usa yarn 3)
-RUN cd app/client \
- && yarn install \
- && yarn build
+# Instala dependências no monorepo (root)
+RUN yarn install
 
-# Build do RTS
-RUN cd app/client/packages/rts \
- && yarn install \
- && yarn build
+# Faz o build completo (gera client + rts + server assets)
+RUN yarn build
 
 # ============================
 # Stage 2: imagem final
@@ -28,15 +24,15 @@ FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV IN_DOCKER=1
 
-# Dependências mínimas de runtime
+# Dependências mínimas
 RUN apt-get update \
  && apt-get install -y ca-certificates curl gnupg \
  && rm -rf /var/lib/apt/lists/*
 
-# Estrutura de runtime do Appsmith (seu repo possui deploy/docker/fs)
+# Estrutura runtime Appsmith
 COPY deploy/docker/fs/ /
 
-# Artefatos compilados do stage 1
+# Copia apenas os artefatos gerados no build
 COPY --from=clientbuild /src/app/client/build /editor/
 COPY --from=clientbuild /src/app/client/packages/rts/dist /rts/
 
