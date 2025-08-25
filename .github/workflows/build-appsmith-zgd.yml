@@ -25,24 +25,49 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Enable Corepack & Yarn 3.5.1
+      - name: Enable Corepack & Yarn 3.5.1 (global)
         run: |
           corepack enable
           corepack prepare yarn@3.5.1 --activate
           yarn -v
 
-      # === CLIENT ===
-      - name: Configure Yarn (client)
+      # --- DEBUG: ver estrutura e arquivos do client ---
+      - name: Debug layout
+        run: |
+          pwd
+          ls -la
+          echo "--- app/client ---"
+          ls -la app/client || true
+          echo "--- package.json (top 60) ---"
+          head -n 60 app/client/package.json || true
+          echo "--- .yarnrc.yml ---"
+          cat app/client/.yarnrc.yml || true
+
+      # --- GARANTIR Yarn 3.5.1 DENTRO DO PROJETO client ---
+      - name: Pin Yarn inside project (client)
         working-directory: app/client
         run: |
-          yarn config set enableImmutableInstalls false
-          yarn config set enableImmutableCache false
-          yarn config set nodeLinker node-modules
-          yarn config set enableGlobalCache true
+          corepack use yarn@3.5.1
+          yarn -v
+          # cria .yarnrc.yml mínima, se não existir
+          if [ ! -f .yarnrc.yml ]; then
+            cat > .yarnrc.yml <<'YRC'
+nodeLinker: node-modules
+enableGlobalCache: true
+yarnPath: .yarn/releases/yarn-3.5.1.cjs
+YRC
+          fi
+          # garante o binário do yarn no projeto
+          yarn set version 3.5.1
+          git status --porcelain || true
 
+      # === CLIENT ===
       - name: Install client deps
         working-directory: app/client
-        run: yarn install
+        env:
+          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
+        run: |
+          yarn install
 
       - name: Build client
         working-directory: app/client
