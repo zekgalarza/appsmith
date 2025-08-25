@@ -26,10 +26,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push (Dockerfile at repo root)
+      - name: Build and push (Dockerfile.zgd)
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile.zgd
           push: true
           provenance: false
           build-args: |
