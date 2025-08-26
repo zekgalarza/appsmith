@@ -3,7 +3,7 @@
 # ============================
 FROM node:18-bullseye AS clientbuild
 
-# Toolchain para node-gyp e cia
+# Toolchain para pacotes nativos (node-gyp etc.)
 RUN apt-get update && apt-get install -y \
     build-essential python3 make g++ git ca-certificates \
  && rm -rf /var/lib/apt/lists/*
@@ -13,25 +13,24 @@ WORKDIR /src
 # Copia o repo
 COPY . .
 
-# Habilita Yarn 3.5.1 via Corepack
+# Habilita Yarn 3.5.1 e fixa no projeto
 RUN corepack enable && corepack prepare yarn@3.5.1 --activate && yarn -v && node -v
 
-# Yarn: usar node-modules (mais compatível em CI)
-ENV YARN_ENABLE_IMMUTABLE_INSTALLS=false
-RUN yarn config set nodeLinker node-modules
-RUN yarn config set enableGlobalCache true
-RUN yarn config set httpTimeout 120000
+# Cria .yarnrc.yml do projeto (evita 'yarn config set' falhar)
+# Usamos nodeLinker: node-modules para maior compatibilidade em CI
+RUN printf "nodeLinker: node-modules\nenableGlobalCache: true\n" > .yarnrc.yml \
+ && mkdir -p .yarn/releases \
+ && yarn set version 3.5.1
 
-# Debug: mostra workspaces detectados
+# (Opcional) listar workspaces para debug; não falhar o build se der erro
 RUN yarn workspaces list --json || true
 
-# Instala dependências (com cache de yarn/npm)
-# (se falhar por rede, tenta de novo)
+# Instala dependências (com cache + retry)
 RUN --mount=type=cache,target=/root/.cache/yarn \
     --mount=type=cache,target=/root/.cache/npm \
     yarn install || yarn install
 
-# Build do monorepo (gera app/client/build e packages/rts/dist)
+# Faz o build do monorepo (gera app/client/build e packages/rts/dist)
 RUN yarn build
 
 # ============================
@@ -46,10 +45,10 @@ RUN apt-get update \
  && apt-get install -y ca-certificates curl gnupg \
  && rm -rf /var/lib/apt/lists/*
 
-# Estrutura de runtime (seu repo tem deploy/docker/fs)
+# Estrutura de runtime do Appsmith
 COPY deploy/docker/fs/ /
 
-# Artefatos gerados no stage 1
+# Artefatos do build
 COPY --from=clientbuild /src/app/client/build /editor/
 COPY --from=clientbuild /src/app/client/packages/rts/dist /rts/
 
