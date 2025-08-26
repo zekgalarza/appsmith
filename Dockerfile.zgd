@@ -2,18 +2,36 @@
 # Stage 1: build client + RTS
 # ============================
 FROM node:18-bullseye AS clientbuild
+
+# Toolchain para node-gyp e cia
+RUN apt-get update && apt-get install -y \
+    build-essential python3 make g++ git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /src
 
-# Copia o repo inteiro
+# Copia o repo
 COPY . .
 
 # Habilita Yarn 3.5.1 via Corepack
-RUN corepack enable && corepack prepare yarn@3.5.1 --activate && yarn -v
+RUN corepack enable && corepack prepare yarn@3.5.1 --activate && yarn -v && node -v
 
-# Instala dependências no monorepo (root)
-RUN yarn install
+# Yarn: usar node-modules (mais compatível em CI)
+ENV YARN_ENABLE_IMMUTABLE_INSTALLS=false
+RUN yarn config set nodeLinker node-modules
+RUN yarn config set enableGlobalCache true
+RUN yarn config set httpTimeout 120000
 
-# Faz o build completo (gera client + rts + server assets)
+# Debug: mostra workspaces detectados
+RUN yarn workspaces list --json || true
+
+# Instala dependências (com cache de yarn/npm)
+# (se falhar por rede, tenta de novo)
+RUN --mount=type=cache,target=/root/.cache/yarn \
+    --mount=type=cache,target=/root/.cache/npm \
+    yarn install || yarn install
+
+# Build do monorepo (gera app/client/build e packages/rts/dist)
 RUN yarn build
 
 # ============================
@@ -24,15 +42,14 @@ FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV IN_DOCKER=1
 
-# Dependências mínimas
 RUN apt-get update \
  && apt-get install -y ca-certificates curl gnupg \
  && rm -rf /var/lib/apt/lists/*
 
-# Estrutura runtime Appsmith
+# Estrutura de runtime (seu repo tem deploy/docker/fs)
 COPY deploy/docker/fs/ /
 
-# Copia apenas os artefatos gerados no build
+# Artefatos gerados no stage 1
 COPY --from=clientbuild /src/app/client/build /editor/
 COPY --from=clientbuild /src/app/client/packages/rts/dist /rts/
 
